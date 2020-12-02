@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import co.com.techandsolve.dao.ArchivoElementosDAO;
+import co.com.techandsolve.dto.DetalleCargaDTO;
+import co.com.techandsolve.dto.RespuestaCargaDTO;
 import co.com.techandsolve.model.RegistroUsuarioAcarreo;
 
 @Service
@@ -20,37 +22,38 @@ public class OperacionRegistroTrabajadorService {
 
 	@Autowired
 	private AcarreoService acarreoService;
-	
+
 	@Autowired
 	private ArchivoElementosDAO archivoElementos;
-	
-	public String realizarOperacionRegistro(MultipartFile archivoAcarreos, Integer cedula) throws IOException {
+
+	public RespuestaCargaDTO realizarOperacionRegistro(MultipartFile archivoAcarreos, Integer cedula)
+			throws IOException {
+		RespuestaCargaDTO respuestaCargaDTO = new RespuestaCargaDTO();
+		DetalleCargaDTO detalleCargaDTO = new DetalleCargaDTO();
+		detalleCargaDTO.setCedula(cedula.toString());
 		List<String> valores = archivoElementos.obtenerElementosArchivo(archivoAcarreos);
 		List<String> validacion = archivoElementos.validarArchivo(valores);
-		String mensaje = "";
-		if(validacion.isEmpty()) {
+		if (validacion.isEmpty()) {
 			List<String> listaViajesPorDia = acarreoService.procesarViajesPorDia(valores);
-			if(!listaViajesPorDia.isEmpty()) {
+			if (!listaViajesPorDia.isEmpty()) {
 				archivoElementos.escribirArchivoFinal(listaViajesPorDia);
-				registrarTrabajador(cedula,listaViajesPorDia);
+				detalleCargaDTO = registrarTrabajador(cedula, listaViajesPorDia, detalleCargaDTO);
+				respuestaCargaDTO.getListaDetalleCarga().add(detalleCargaDTO);
 			}
-		}else {
-			mensaje = validacion.stream().collect(Collectors.joining(","));
-		}
-		return mensaje;
-		
-		
+		} 
+		return respuestaCargaDTO;
+
 	}
-	
-	private void registrarTrabajador(Integer cedula, List<String> listaViajesPorDia) {
+
+	private DetalleCargaDTO registrarTrabajador(Integer cedula, List<String> listaViajesPorDia, DetalleCargaDTO detalleCargaDTO) {
 		RegistroUsuarioAcarreo registro = new RegistroUsuarioAcarreo();
 		registro.setCedula(cedula);
 		registro.setFechaRegistro(LocalDateTime.now());
 		registro.setNumeroViajes(listaViajesPorDia.stream().collect(Collectors.joining(",")));
 		registroUsuarioAcarreoService.registrarTrabajador(registro);
+		return detalleCargaDTO;
 	}
-	
-	
+
 	public RegistroUsuarioAcarreoService getRegistroUsuarioAcarreoService() {
 		return registroUsuarioAcarreoService;
 	}
@@ -66,7 +69,7 @@ public class OperacionRegistroTrabajadorService {
 	public void setAcarreoService(AcarreoService acarreoService) {
 		this.acarreoService = acarreoService;
 	}
-	
+
 	public ArchivoElementosDAO getArchivoElementos() {
 		return archivoElementos;
 	}
